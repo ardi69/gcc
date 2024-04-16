@@ -4,8 +4,27 @@ LIB1ASMFUNCS = _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
    _eqdf2 _nedf2 _gtdf2 _gedf2 _ltdf2 _ledf2 \
    _eqsf2 _nesf2 _gtsf2 _gesf2 _ltsf2 _lesf2
 
-LIB2ADD = $(srcdir)/config/m68k/fpgnulib.c xfgnulib.c
 
-xfgnulib.c: $(srcdir)/config/m68k/fpgnulib.c
-	echo '#define EXTFLOAT' > xfgnulib.c
-	cat $< >> xfgnulib.c
+LIB2FGNULIBFUNCS = \
+	_unordsf2 _unorddf2 \
+	_floatunsidf _floatsidf _floatunsisf _floatsisf \
+	_extendsfdf2 _truncdfsf2 _fixdfsi _fixsfsi
+LIB2FGNULIBFUNCS_XF = \
+	 _unordxf2 \
+	_extenddfxf2 _truncxfdf2 _extendsfxf2 _truncxfsf2 \
+	_floatsixf _floatunsixf _fixxfsi \
+	_addxf3 _subxf3 _mulxf3 _divxf3 _negxf2 _cmpxf2 \
+	_eqxf2 _nexf2 _ltxf2 _lexf2 _gtxf2 _gexf2
+
+xfgnulib-c = $(patsubst %,%.c,$(LIB2FGNULIBFUNCS))
+$(xfgnulib-c) : $(srcdir)/config/m68k/fpgnulib.c
+	echo '#define L$(basename $@)' > $@
+	cat $< >> $@
+
+xfgnulib-xf-c = $(patsubst %,%.c,$(LIB2FGNULIBFUNCS_XF))
+$(xfgnulib-xf-c) : $(srcdir)/config/m68k/fpgnulib.c
+	echo '#define L$(basename $@)' > $@
+	echo '#define EXTFLOAT' >> $@
+	cat $< >> $@
+
+LIB2ADD = $(xfgnulib-c) $(xfgnulib-xf-c)

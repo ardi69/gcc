@@ -49,6 +49,8 @@
 ** in with -msoft-float.
 */
 
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 /* the following deal with IEEE single-precision numbers */
 #define EXCESS		126L
 #define SIGNBIT		0x80000000L
@@ -102,23 +104,38 @@ union long_double_long
       unsigned long lower;
     } l;
 };
+
+double __floatunsidf (unsigned long);
+double __floatsidf (long);
+float __floatsisf (long);
+double __extendsfdf2 (float);
+long double __extenddfxf2 (double);
+float __truncdfsf2 (double);
+double __truncxfdf2 (long double);
+long __fixdfsi (double);
+long __fixsfsi (float);
+long __cmpdf2 (double, double);
+
 
 #ifndef EXTFLOAT
 
+#ifdef L_unordsf2
 int
 __unordsf2(float a, float b)
 {
   union float_long fl;
 
   fl.f = a;
-  if (EXP(fl.l) == EXP(~0u) && (MANT(fl.l) & ~HIDDEN) != 0)
+  if (EXP(fl.l) == EXP(~0ul) && (MANT(fl.l) & ~HIDDEN) != 0)
     return 1;
   fl.f = b;
-  if (EXP(fl.l) == EXP(~0u) && (MANT(fl.l) & ~HIDDEN) != 0)
+  if (EXP(fl.l) == EXP(~0ul) && (MANT(fl.l) & ~HIDDEN) != 0)
     return 1;
   return 0;
 }
+#endif
 
+#ifdef L_unorddf2
 int
 __unorddf2(double a, double b)
 {
@@ -134,7 +151,9 @@ __unorddf2(double a, double b)
     return 1;
   return 0;
 }
+#endif
 
+#ifdef L_floatunsidf
 /* convert unsigned int to double */
 double
 __floatunsidf (unsigned long a1)
@@ -167,7 +186,9 @@ __floatunsidf (unsigned long a1)
 
   return dl.d;
 }
+#endif
 
+#ifdef L_floatsidf
 /* convert int to double */
 double
 __floatsidf (long a1)
@@ -213,7 +234,9 @@ __floatsidf (long a1)
 
   return dl.d;
 }
+#endif
 
+#ifdef L_floatunsisf
 /* convert unsigned int to float */
 float
 __floatunsisf (unsigned long l)
@@ -221,7 +244,9 @@ __floatunsisf (unsigned long l)
   double foo = __floatunsidf (l);
   return foo;
 }
+#endif
 
+#ifdef L_floatsisf
 /* convert int to float */
 float
 __floatsisf (long l)
@@ -229,7 +254,9 @@ __floatsisf (long l)
   double foo = __floatsidf (l);
   return foo;
 }
+#endif
 
+#ifdef L_extendsfdf2
 /* convert float to double */
 double
 __extendsfdf2 (float a1)
@@ -268,7 +295,9 @@ __extendsfdf2 (float a1)
 	
   return dl.d;
 }
+#endif
 
+#ifdef L_truncdfsf2
 /* convert double to float */
 float
 __truncdfsf2 (double a1)
@@ -290,7 +319,7 @@ __truncdfsf2 (double a1)
 
   exp = EXPD (dl1) - EXCESSD + EXCESS;
 
-  sticky = dl1.l.lower & ((1 << 22) - 1);
+  sticky = dl1.l.lower & ((1ul << 22) - 1);
   mant = MANTD (dl1);
   /* shift double mantissa 6 bits so we can round */
   sticky |= mant & ((1 << 6) - 1);
@@ -336,7 +365,9 @@ __truncdfsf2 (double a1)
   fl.l = PACK (SIGND (dl1), exp, mant);
   return (fl.f);
 }
+#endif
 
+#ifdef L_fixdfsi
 /* convert double to int */
 long
 __fixdfsi (double a1)
@@ -368,7 +399,9 @@ __fixdfsi (double a1)
 
   return (SIGND (dl1) ? -l : l);
 }
+#endif
 
+#ifdef L_fixsfsi
 /* convert float to int */
 long
 __fixsfsi (float a1)
@@ -376,6 +409,7 @@ __fixsfsi (float a1)
   double foo = a1;
   return __fixdfsi (foo);
 }
+#endif
 
 #else /* EXTFLOAT */
 
@@ -387,15 +421,7 @@ __fixsfsi (float a1)
 
    We assume all numbers are normalized, don't do any rounding, etc.  */
 
-/* Prototypes for the above in case we use them.  */
-double __floatunsidf (unsigned long);
-double __floatsidf (long);
-float __floatsisf (long);
-double __extendsfdf2 (float);
-float __truncdfsf2 (double);
-long __fixdfsi (double);
-long __fixsfsi (float);
-
+#ifdef L_unordxf2
 int
 __unordxf2(long double a, long double b)
 {
@@ -411,7 +437,9 @@ __unordxf2(long double a, long double b)
     return 1;
   return 0;
 }
+#endif
 
+#ifdef L_extenddfxf2
 /* convert double to long double */
 long double
 __extenddfxf2 (double d)
@@ -444,7 +472,9 @@ __extenddfxf2 (double d)
   /*printf ("dfxf out: %s\n", dumpxf (ldl.ld));*/
   return ldl.ld;
 }
+#endif
 
+#ifdef L_truncxfdf2
 /* convert long double to double */
 double
 __truncxfdf2 (long double ld)
@@ -476,7 +506,9 @@ __truncxfdf2 (long double ld)
   /*printf ("xfdf out: %g\n", dl.d);*/
   return dl.d;
 }
+#endif
 
+#ifdef L_extendsfxf2
 /* convert a float to a long double */
 long double
 __extendsfxf2 (float f)
@@ -484,7 +516,9 @@ __extendsfxf2 (float f)
   long double foo = __extenddfxf2 (__extendsfdf2 (f));
   return foo;
 }
+#endif
 
+#ifdef L_truncxfsf2
 /* convert a long double to a float */
 float
 __truncxfsf2 (long double ld)
@@ -492,7 +526,9 @@ __truncxfsf2 (long double ld)
   float foo = __truncdfsf2 (__truncxfdf2 (ld));
   return foo;
 }
+#endif
 
+#ifdef L_floatsixf
 /* convert an int to a long double */
 long double
 __floatsixf (long l)
@@ -500,7 +536,9 @@ __floatsixf (long l)
   double foo = __floatsidf (l);
   return foo;
 }
+#endif
 
+#ifdef L_floatunsixf
 /* convert an unsigned int to a long double */
 long double
 __floatunsixf (unsigned long l)
@@ -508,7 +546,9 @@ __floatunsixf (unsigned long l)
   double foo = __floatunsidf (l);
   return foo;
 }
+#endif
 
+#ifdef L_fixxfsi
 /* convert a long double to an int */
 long
 __fixxfsi (long double ld)
@@ -516,80 +556,106 @@ __fixxfsi (long double ld)
   long foo = __fixdfsi ((double) ld);
   return foo;
 }
+#endif
 
 /* The remaining provide crude math support by working in double precision.  */
 
+#ifdef L_addxf3
 long double
 __addxf3 (long double x1, long double x2)
 {
   return (double) x1 + (double) x2;
 }
+#endif
 
+#ifdef L_subxf3
 long double
 __subxf3 (long double x1, long double x2)
 {
   return (double) x1 - (double) x2;
 }
+#endif
 
+#ifdef L_mulxf3
 long double
 __mulxf3 (long double x1, long double x2)
 {
   return (double) x1 * (double) x2;
 }
+#endif
 
+#ifdef L_divxf3
 long double
 __divxf3 (long double x1, long double x2)
 {
   return (double) x1 / (double) x2;
 }
+#endif
 
+#ifdef L_negxf2
 long double
 __negxf2 (long double x1)
 {
   return - (double) x1;
 }
+#endif
 
+#ifdef L_cmpxf2
 long
 __cmpxf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_eqxf2
 long
 __eqxf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_nexf2
 long
 __nexf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_ltxf2
 long
 __ltxf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_lexf2
 long
 __lexf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_gtxf2
 long
 __gtxf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
 
+#ifdef L_gexf2
 long
 __gexf2 (long double x1, long double x2)
 {
   return __cmpdf2 ((double) x1, (double) x2);
 }
+#endif
+
 
 #endif /* !__mcoldfire__ */
 #endif /* EXTFLOAT */

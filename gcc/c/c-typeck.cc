@@ -3269,11 +3269,33 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
   fntype = TREE_TYPE (fntype);
   tree return_type = TREE_TYPE (fntype);
 
+	{
+		bool need_restore=false;
+		tree orig_integer_type_node = integer_type_node;
+		tree orig_unsigned_type_node = unsigned_type_node;
+		if (!TARGET_SHORT && lookup_attribute ("shortcall", TYPE_ATTRIBUTES(fntype))) {
+			need_restore=true;
+			integer_type_node = short_integer_type_node; // fake int_types
+			unsigned_type_node = short_unsigned_type_node;
+		}
+		if (TARGET_SHORT && lookup_attribute ("longcall", TYPE_ATTRIBUTES(fntype))) {
+			need_restore=true;
+			integer_type_node = long_integer_type_node; // fake int_types
+			unsigned_type_node = long_unsigned_type_node;
+		}
+
   /* Convert the parameters to the types declared in the
      function prototype, or apply default promotions.  */
 
   nargs = convert_arguments (loc, arg_loc, TYPE_ARG_TYPES (fntype), params,
 			     origtypes, function, fundecl);
+
+		if(need_restore) { // restore faket int_types
+			integer_type_node = orig_integer_type_node;
+			unsigned_type_node = orig_unsigned_type_node;
+		}
+	}
+
   if (nargs < 0)
     return error_mark_node;
 

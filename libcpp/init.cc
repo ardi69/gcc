@@ -247,7 +247,7 @@ cpp_create_reader (enum c_lang lang, cpp_hash_table *table,
   CPP_OPTION (pfile, bytes_big_endian) = 1;  /* does not matter */
 
   /* Default to no charset conversion.  */
-  CPP_OPTION (pfile, narrow_charset) = _cpp_default_encoding ();
+  CPP_OPTION (pfile, narrow_charset) = "ATARIST"; /* _cpp_default_encoding (); */
   CPP_OPTION (pfile, wide_charset) = 0;
 
   /* Default the input character set to UTF-8.  */

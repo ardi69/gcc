@@ -2609,7 +2609,29 @@ update_stack_alignment_for_call (struct locate_and_pad_arg_data *locate)
    If IGNORE is nonzero, then we ignore the value of the function call.  */
 
 rtx
-expand_call (tree exp, rtx target, int ignore)
+orig_expand_call (tree exp, rtx target, int ignore);
+rtx
+expand_call (tree exp, rtx target, int ignore) {
+	tree funtype = get_callee_fndecl (exp);
+	if (!funtype) funtype = TREE_TYPE (CALL_EXPR_FN (exp));
+	funtype = TREE_TYPE(funtype);
+	bool need_restore=false;
+	if (TREE_CODE (funtype) == FUNCTION_TYPE || TREE_CODE (funtype) == METHOD_TYPE) {
+		if ((!TARGET_SHORT && lookup_attribute ("shortcall", TYPE_ATTRIBUTES (funtype)))
+			|| (TARGET_SHORT && lookup_attribute ("longcall", TYPE_ATTRIBUTES (funtype)))) {
+			need_restore = true;
+			target_flags ^= MASK_SHORT;
+		}
+	}
+
+	rtx ret = orig_expand_call (exp, target, ignore);
+
+	if (need_restore) target_flags ^= MASK_SHORT;
+	return ret;
+}
+
+rtx
+orig_expand_call (tree exp, rtx target, int ignore)
 {
   /* Nonzero if we are currently expanding a call.  */
   static int currently_expanding_call = 0;

@@ -115,3 +115,15 @@ extern rtx m68k_legitimize_call_address (rtx);
 extern rtx m68k_legitimize_sibcall_address (rtx);
 extern int m68k_hard_regno_rename_ok(unsigned int, unsigned int);
 extern poly_int64 m68k_push_rounding (poly_int64);
+
+#ifdef RTX_CODE
+#ifdef TREE_CODE
+extern void m68k_init_cumulative_args (CUMULATIVE_ARGS *, tree);
+//extern void m68k_function_arg_advance (CUMULATIVE_ARGS *);
+//extern rtx m68k_function_arg (CUMULATIVE_ARGS *, enum machine_mode,
+//			      const_tree, bool);
+extern bool m68k_is_fastcall_function(const_tree fndecl_or_fntype);
+extern void m68k_profile_function(FILE *file, int funcdef_no, unsigned long saved_regs);
+#endif
+#endif
+void m68k_order_regs_for_local_alloc (void);

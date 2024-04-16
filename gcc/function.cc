@@ -3637,7 +3637,24 @@ assign_parms_unsplit_complex (struct assign_parm_data_all *all,
    copying them into registers and using those registers as the DECL_RTL.  */
 
 static void
-assign_parms (tree fndecl)
+orig_assign_parms (tree fndecl);
+static void
+assign_parms (tree fndecl) {
+	bool need_restore=false;
+//	tree orig_integer_type_node = integer_type_node;
+//	tree orig_unsigned_type_node = unsigned_type_node;
+	if (TREE_CODE (fndecl) == FUNCTION_DECL) {
+		if ((!TARGET_SHORT && lookup_attribute ("shortcall", TYPE_ATTRIBUTES (TREE_TYPE(fndecl))))
+			|| (TARGET_SHORT && lookup_attribute ("longcall", TYPE_ATTRIBUTES (TREE_TYPE(fndecl))))) {
+			need_restore = true;
+			target_flags ^= MASK_SHORT;
+		}
+	}
+	orig_assign_parms(fndecl);
+	if (need_restore) target_flags ^= MASK_SHORT;
+}
+static void
+orig_assign_parms (tree fndecl)
 {
   struct assign_parm_data_all all;
   tree parm;

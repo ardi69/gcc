@@ -22,6 +22,11 @@
    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
+#if defined(__mcoldfire__) && defined(__MSHORT__)
+// this is only a bad hack
+#pragma GCC optimize "O0"
+#endif
+
 #include "tconfig.h"
 #include "tsystem.h"
 #include "coretypes.h"
@@ -41,7 +46,8 @@
 #ifdef HAVE_SYS_SDT_H
 #include <sys/sdt.h>
 #endif
-
+//void my_memset(void *, long, size_t);
+//#define memset my_memset
 #ifndef __USING_SJLJ_EXCEPTIONS__
 
 #ifndef __LIBGCC_STACK_GROWS_DOWNWARD__
