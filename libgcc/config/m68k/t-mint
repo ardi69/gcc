@@ -1,0 +1,8 @@
+
+LIB2ADD += $(srcdir)/config/m68k/mint-allocate-tls.c \
+		$(srcdir)/config/m68k/mint-m68k-rw-tp.c \
+		$(srcdir)/config/m68k/mint-main.c
+
+
+LIB2FUNCS_EXCLUDE += __main
+

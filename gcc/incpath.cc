@@ -141,6 +141,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 	 IPREFIX and search them first.  */
       for (p = cpp_include_defaults; p->fname; p++)
 	{
+	  if (!cpp_default_include_enabled(p)) continue;
 	  if (p->cplusplus == 0
 	      || (cxx_stdinc && (p->cplusplus == flag_stdlib_kind)))
 	    {
@@ -173,6 +174,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 
   for (p = cpp_include_defaults; p->fname; p++)
     {
+      if (!cpp_default_include_enabled(p)) continue;
       if (p->cplusplus == 0
 	  || (cxx_stdinc && (p->cplusplus == flag_stdlib_kind)))
 	{

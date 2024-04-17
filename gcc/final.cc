@@ -4286,6 +4286,7 @@ rest_of_handle_final (void)
     targetm.asm_out.destructor (XEXP (DECL_RTL (current_function_decl), 0),
 				decl_fini_priority_lookup
 				  (current_function_decl));
+  m68k_compute_slb_export(current_function_decl);
   return 0;
 }
 

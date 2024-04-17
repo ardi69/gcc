@@ -24,6 +24,10 @@
 #include "tm.h"
 #include "cppdefault.h"
 
+#if defined(__MINGW32__) && defined(TARGET_SYSTEM_ROOT)
+#define NATIVE_SYSTEM_HEADER_DIR "/usr/include"
+#endif
+
 #ifndef NATIVE_SYSTEM_HEADER_COMPONENT
 #define NATIVE_SYSTEM_HEADER_COMPONENT 0
 #endif
@@ -93,6 +97,9 @@ const struct default_include cpp_include_defaults[]
 #endif
 #ifdef TOOL_INCLUDE_DIR
     /* Another place the target system's headers might be.  */
+#ifdef TOOL_INCLUDE_DIR_EXTRA_BOFORE
+    { TOOL_INCLUDE_DIR_EXTRA_BOFORE, "BINUTILS", 0, 1, 0, 0 },
+#endif
     { TOOL_INCLUDE_DIR, "BINUTILS", 0, 1, 0, 0 },
 #endif
 #ifdef NATIVE_SYSTEM_HEADER_DIR
@@ -138,4 +145,13 @@ cpp_relocated (void)
     }
 
   return relocated;
+}
+
+/* Return true if the include enabled.  */
+bool cpp_default_include_enabled (const default_include *include) {
+#ifdef TOOL_INCLUDE_DIR_EXTRA_BOFORE
+	if (strcmp(include->fname, TOOL_INCLUDE_DIR_EXTRA_BOFORE) == 0)
+		return TOOL_INCLUDE_DIR_EXTRA_BOFORE_ENABLED;
+#endif
+	return true;
 }

@@ -131,8 +131,21 @@ along with GCC; see the file COPYING3.  If not see
 	}								\
 									\
       if (TARGET_68881)							\
-	builtin_define ("__HAVE_68881__");				\
+	{								\
+	  builtin_define ("__HAVE_68881__");				\
+	  builtin_define ("__M68881__"); /* Non-standard */		\
+	}								\
 									\
+      if (TARGET_SHORT)                                                 \
+        {                                                               \
+      	  builtin_define ("__SHORT__"); /* Non-standard */		\
+        }                                                               \
+                                                                        \
+      if (TARGET_FASTCALL)                                              \
+        {                                                               \
+      	  builtin_define ("__FASTCALL__"); /* Non-standard */		\
+        }                                                               \
+                                                                        \
       if (TARGET_COLDFIRE)						\
 	{								\
 	  const char *tmp;						\
@@ -193,6 +206,12 @@ along with GCC; see the file COPYING3.  If not see
 									\
       builtin_assert ("cpu=m68k");					\
       builtin_assert ("machine=m68k");					\
+																		\
+      builtin_define ("__longcall=__attribute__((longcall))");			\
+      builtin_define ("__shortcall=__attribute__((shortcall))");		\
+      builtin_define ("__fastcall=__attribute__((fastcall))");			\
+      builtin_define ("__CDECL=__attribute__((stkparm))");				\
+      builtin_define ("cdecl=__attribute__((stkparm))");				\
     }									\
   while (0)
 
@@ -408,6 +427,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #define STATIC_CHAIN_REGNUM A0_REG
 #define M68K_STATIC_CHAIN_REG_NAME REGISTER_PREFIX "a0"
+#define M68K_FASTCALL_STATIC_CHAIN_REGNUM A2_REG
 
 /* Register in which address to store a structure value
    is passed to a function.  */
@@ -470,7 +490,7 @@ extern enum reg_class regno_reg_class[];
 
 #define PUSH_ROUNDING(BYTES) m68k_push_rounding (BYTES)
 
-#define FIRST_PARM_OFFSET(FNDECL) 8
+#define FIRST_PARM_OFFSET(FNDECL) (DECL_STATIC_CHAIN (FNDECL) && m68k_is_fastcall_function(FNDECL) ? 16 : 8)
 
 /* On the m68k the return value defaults to D0.  */
 #define FUNCTION_VALUE(VALTYPE, FUNC)  \
@@ -480,7 +500,9 @@ extern enum reg_class regno_reg_class[];
 #define LIBCALL_VALUE(MODE)  gen_rtx_REG (MODE, D0_REG)
 
 /* On the m68k, D0 is usually the only register used.  */
-#define FUNCTION_VALUE_REGNO_P(N) ((N) == D0_REG)
+#undef FUNCTION_VALUE_REGNO_P
+#define FUNCTION_VALUE_REGNO_P(N)					\
+  ((N) == D0_REG || (N) == A0_REG || (TARGET_HARD_FLOAT && (N) == FP0_REG))
 
 /* Define this to be true when FUNCTION_VALUE_REGNO_P is true for
    more than one register.
@@ -488,17 +510,72 @@ extern enum reg_class regno_reg_class[];
 #define NEEDS_UNTYPED_CALL 0
 
 /* On the m68k, all arguments are usually pushed on the stack.  */
-#define FUNCTION_ARG_REGNO_P(N) 0
-
-/* On the m68k, this is a single integer, which is a number of bytes
-   of arguments scanned so far.  */
-#define CUMULATIVE_ARGS int
+/* 1 if N is a possible register number for function argument passing.  */
+#define FUNCTION_ARG_REGNO_P(N)			\
+  ((((int)N) >= 0 && (N) < M68K_FASTCALL_DATA_PARM)		\
+   || ((N) >= 8 && (N) < 8 + M68K_FASTCALL_ADDR_PARM)	\
+   || (TARGET_HARD_FLOAT && (N) >= 16 && (N) < 16 + M68K_FASTCALL_FP_PARM))
 
-/* On the m68k, the offset starts at 0.  */
+
+   
+/* The number of data registers and address registers to use for
+   fast calls. */
+#define M68K_FASTCALL_DATA_PARM 3
+#define M68K_FASTCALL_ADDR_PARM 2
+/* The number of fp registers to use for fast calls.
+   if M68K_FASTCALL_FP_PARM == 0 floats passed as DATA_PARM
+   otherwise floats always passed to fp-regs
+   if TARGET_HARD_FLOAT == false then M68K_FASTCALL_FP_PARM is implicit 0
+   NOTE: is M68K_FASTCALL_FP_PARM!= 0 makes calls incompatible with soft-fp */
+#define M68K_FASTCALL_FP_PARM 3
+
+// Call clobbered regs.
+#define M68K_STD_USED_REGS 2
+#define M68K_FASTCALL_USED_DATA_REGS 3
+#define M68K_FASTCALL_USED_ADDR_REGS 2
+#define M68K_FASTCALL_USED_FP_REGS M68K_FASTCALL_USED_DATA_REGS
+
+/* On the m68k, this is a structure:
+   regs_already_used: bitmask of the already used registers.
+   last_arg_reg - register number of the most recently passed argument.
+     -1 if passed on stack.
+   last_arg_len - number of registers used by the most recently passed
+     argument.
+*/
+
+struct m68k_args
+{
+  long regs_already_used;
+  int last_arg_reg;
+  int last_arg_len;
+  tree fntype;
+};
+
+#define CUMULATIVE_ARGS struct m68k_args
+
+/* The default number of data, address and float registers to use when
+   user specified '-mregparm' switch, not '-mregparm=<value>' option.  */
+
+#define ADJUST_REG_ALLOC_ORDER m68k_order_regs_for_local_alloc ()
+
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
- ((CUM) = 0)
+  (m68k_init_cumulative_args (&(CUM), (FNTYPE)))
+
+/*#define FUNCTION_ARG_ADVANCE(CUM, MODE, TYPE, NAMED)	\
+  (m68k_function_arg_advance (&(CUM))) */
+
+/* On m68k all args are pushed, except if -mfastcall then d0-2, a0-1 and
+   fp0-2 are used for passing the first arguments.
+   Note: by default, the static-chain is passed in a0. Targets that want
+   to make full use of '-mfastcall' are advised to pass the static-chain
+   somewhere else.  */
+/*#define FUNCTION_ARG(CUM, MODE, TYPE, NAMED) \
+  (m68k_function_arg (&(CUM), (MODE), (TYPE), (NAMED))) */
 
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
+    m68k_profile_function(FILE, LABELNO, ((chain && REG_P(chain)) ? 1UL << REGNO (chain) : 0) | ((sval && REG_P(sval)) ? 1UL << REGNO (sval) : 0));
+
+#define M68K_FUNCTION_PROFILER(FILE, LABELNO)  \
   asm_fprintf (FILE, "\tlea %LLP%d,%Ra0\n\tjsr mcount\n", (LABELNO))
 
 #define EXIT_IGNORE_STACK 1
@@ -523,7 +600,7 @@ extern enum reg_class regno_reg_class[];
    Since more instructions are required to move a template into
    place than to create it on the spot, don't use a template.  */
 
-#define TRAMPOLINE_SIZE 12
+#define TRAMPOLINE_SIZE (12 + 4) // in fastcall need extra inst to save & rest STATIC_CHAIN_REG
 #define TRAMPOLINE_ALIGNMENT 16
 
 /* Targets redefine this to invoke code to either flush the cache,
@@ -544,6 +621,8 @@ extern enum reg_class regno_reg_class[];
    The function definition just permits use of "asm with operands"
    (though the operand list is empty).  */
 #define TRANSFER_FROM_TRAMPOLINE				\
+void								\
+__transfer_from_trampoline ();					\
 void								\
 __transfer_from_trampoline ()					\
 {								\
@@ -918,5 +997,7 @@ extern void m68k_emit_move_double (rtx [2]);
 
 extern int m68k_sched_address_bypass_p (rtx_insn *, rtx_insn *);
 extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
+
+extern void m68k_compute_slb_export (tree fndecl);
 
 #define CPU_UNITS_QUERY 1

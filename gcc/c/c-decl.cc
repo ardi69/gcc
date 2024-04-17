@@ -5662,6 +5662,19 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
 	ce = declarator->declarator;
       if (ce->kind == cdk_function)
 	{
+		bool need_restore=false;
+		tree orig_integer_type_node = integer_type_node;
+		tree orig_unsigned_type_node = unsigned_type_node;
+		if (!TARGET_SHORT && lookup_attribute ("shortcall", attributes)) {
+			need_restore = true;
+			integer_type_node = short_integer_type_node; // fake int_types
+			unsigned_type_node = short_unsigned_type_node;
+		}
+		if (TARGET_SHORT && lookup_attribute ("longcall", attributes)) {
+			need_restore = true;
+			integer_type_node = long_integer_type_node; // fake int_types
+			unsigned_type_node = long_unsigned_type_node;
+		}
 	  tree args = ce->u.arg_info->parms;
 	  for (; args; args = DECL_CHAIN (args))
 	    {
@@ -5670,6 +5683,10 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
 		  && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
 		DECL_ARG_TYPE (args) = c_type_promotes_to (type);
 	    }
+		if (need_restore) { // restore int_types
+			integer_type_node = orig_integer_type_node;
+			unsigned_type_node = orig_unsigned_type_node;
+		}
 	}
     }
 
@@ -11172,9 +11189,24 @@ finish_function (location_t end_loc)
     objc_finish_function ();
 
   if (TREE_CODE (fndecl) == FUNCTION_DECL
-      && targetm.calls.promote_prototypes (TREE_TYPE (fndecl)))
+      && targetm.calls.promote_prototypes (TREE_TYPE(fndecl)))
     {
       tree args = DECL_ARGUMENTS (fndecl);
+
+		bool need_restore=false;
+		tree orig_integer_type_node = integer_type_node;
+		tree orig_unsigned_type_node = unsigned_type_node;
+		if (!TARGET_SHORT && lookup_attribute ("shortcall", TYPE_ATTRIBUTES (TREE_TYPE(fndecl)))) {
+			need_restore = true;
+			integer_type_node = short_integer_type_node; // fake int_types
+			unsigned_type_node = short_unsigned_type_node;
+		}
+		if (!TARGET_SHORT && lookup_attribute ("longcall", TYPE_ATTRIBUTES (TREE_TYPE(fndecl)))) {
+			need_restore = true;
+			integer_type_node = long_integer_type_node; // fake int_types
+			unsigned_type_node = long_unsigned_type_node;
+		}
+
       for (; args; args = DECL_CHAIN (args))
 	{
 	  tree type = TREE_TYPE (args);
@@ -11182,6 +11214,10 @@ finish_function (location_t end_loc)
 	      && TYPE_PRECISION (type) < TYPE_PRECISION (integer_type_node))
 	    DECL_ARG_TYPE (args) = c_type_promotes_to (type);
 	}
+		if (need_restore) { // restore int_types
+			integer_type_node = orig_integer_type_node;
+			unsigned_type_node = orig_unsigned_type_node;
+		}
     }
 
   if (DECL_INITIAL (fndecl) && DECL_INITIAL (fndecl) != error_mark_node)

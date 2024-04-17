@@ -30,201 +30,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 /* These are predefined by new versions of GNU cpp.  */
 
-#ifndef __USER_LABEL_PREFIX__
-#define __USER_LABEL_PREFIX__ _
-#endif
-
-#ifndef __REGISTER_PREFIX__
-#define __REGISTER_PREFIX__
-#endif
-
-#ifndef __IMMEDIATE_PREFIX__
-#define __IMMEDIATE_PREFIX__ #
-#endif
-
-/* ANSI concatenation macros.  */
-
-#define CONCAT1(a, b) CONCAT2(a, b)
-#define CONCAT2(a, b) a ## b
-
-/* Use the right prefix for global labels.  */
-
-#define SYM(x) CONCAT1 (__USER_LABEL_PREFIX__, x)
-
-/* Note that X is a function.  */
-	
-#ifdef __ELF__
-#define FUNC(x) .type SYM(x),function
-#else
-/* The .proc pseudo-op is accepted, but ignored, by GAS.  We could just	
-   define this to the empty string for non-ELF systems, but defining it
-   to .proc means that the information is available to the assembler if
-   the need arises.  */
-#define FUNC(x) .proc
-#endif
-		
-/* Use the right prefix for registers.  */
-
-#define REG(x) CONCAT1 (__REGISTER_PREFIX__, x)
-
-/* Use the right prefix for immediate values.  */
-
-#define IMM(x) CONCAT1 (__IMMEDIATE_PREFIX__, x)
-
-#define d0 REG (d0)
-#define d1 REG (d1)
-#define d2 REG (d2)
-#define d3 REG (d3)
-#define d4 REG (d4)
-#define d5 REG (d5)
-#define d6 REG (d6)
-#define d7 REG (d7)
-#define a0 REG (a0)
-#define a1 REG (a1)
-#define a2 REG (a2)
-#define a3 REG (a3)
-#define a4 REG (a4)
-#define a5 REG (a5)
-#define a6 REG (a6)
-#define fp REG (fp)
-#define sp REG (sp)
-#define pc REG (pc)
-
-/* Provide a few macros to allow for PIC code support.
- * With PIC, data is stored A5 relative so we've got to take a bit of special
- * care to ensure that all loads of global data is via A5.  PIC also requires
- * jumps and subroutine calls to be PC relative rather than absolute.  We cheat
- * a little on this and in the PIC case, we use short offset branches and
- * hope that the final object code is within range (which it should be).
- */
-#ifndef __PIC__
-
-	/* Non PIC (absolute/relocatable) versions */
-
-	.macro PICCALL addr
-	jbsr	\addr
-	.endm
-
-	.macro PICJUMP addr
-	jmp	\addr
-	.endm
-
-	.macro PICLEA sym, reg
-	lea	\sym, \reg
-	.endm
-
-	.macro PICPEA sym, areg
-	pea	\sym
-	.endm
-
-#else /* __PIC__ */
-
-# if defined (__uClinux__)
-
-	/* Versions for uClinux */
-
-#  if defined(__ID_SHARED_LIBRARY__)
-
-	/* -mid-shared-library versions  */
-
-	.macro PICLEA sym, reg
-	movel	a5@(_current_shared_library_a5_offset_), \reg
-	movel	\sym@GOT(\reg), \reg
-	.endm
-
-	.macro PICPEA sym, areg
-	movel	a5@(_current_shared_library_a5_offset_), \areg
-	movel	\sym@GOT(\areg), sp@-
-	.endm
-
-	.macro PICCALL addr
-	PICLEA	\addr,a0
-	jsr	a0@
-	.endm
-
-	.macro PICJUMP addr
-	PICLEA	\addr,a0
-	jmp	a0@
-	.endm
-
-#  else /* !__ID_SHARED_LIBRARY__ */
-
-	/* Versions for -msep-data */
-
-	.macro PICLEA sym, reg
-	movel	\sym@GOT(a5), \reg
-	.endm
-
-	.macro PICPEA sym, areg
-	movel	\sym@GOT(a5), sp@-
-	.endm
-
-	.macro PICCALL addr
-#if defined (__mcoldfire__) && !defined (__mcfisab__) && !defined (__mcfisac__)
-	lea	\addr-.-8,a0
-	jsr	pc@(a0)
-#else
-	jbsr	\addr
-#endif
-	.endm
-
-	.macro PICJUMP addr
-	/* ISA C has no bra.l instruction, and since this assembly file
-	   gets assembled into multiple object files, we avoid the
-	   bra instruction entirely.  */
-#if defined (__mcoldfire__) && !defined (__mcfisab__)
-	lea	\addr-.-8,a0
-	jmp	pc@(a0)
-#else
-	bra	\addr
-#endif
-	.endm
-
-#  endif
-
-# else /* !__uClinux__ */
-
-	/* Versions for Linux */
-
-	.macro PICLEA sym, reg
-	movel	#_GLOBAL_OFFSET_TABLE_@GOTPC, \reg
-	lea	(-6, pc, \reg), \reg
-	movel	\sym@GOT(\reg), \reg
-	.endm
-
-	.macro PICPEA sym, areg
-	movel	#_GLOBAL_OFFSET_TABLE_@GOTPC, \areg
-	lea	(-6, pc, \areg), \areg
-	movel	\sym@GOT(\areg), sp@-
-	.endm
-
-	.macro PICCALL addr
-#if defined (__mcoldfire__) && !defined (__mcfisab__) && !defined (__mcfisac__)
-	lea	\addr-.-8,a0
-	jsr	pc@(a0)
-#else
-	jbsr	\addr
-#endif
-	.endm
-
-	.macro PICJUMP addr
-	/* ISA C has no bra.l instruction, and since this assembly file
-	   gets assembled into multiple object files, we avoid the
-	   bra instruction entirely.  */
-#if defined (__mcoldfire__) && !defined (__mcfisab__)
-	lea	\addr-.-8,a0
-	jmp	pc@(a0)
-#else
-	bra	\addr
-#endif
-	.endm
-
-# endif
-#endif /* __PIC__ */
-
-#ifdef __FASTCALL__
-#include "lb1sf68-std.asm"
-#else
 
 #ifdef L_floatex
 
@@ -424,9 +229,10 @@ $_exception_handler:
 	PICPEA	SYM (_fpCCR),a1	| yes, push address of _fpCCR
 	trap	IMM (FPTRAP)	| and trap
 #ifndef __mcoldfire__
-1:	moveml	sp@+,d2-d7	| restore data registers
+1:	moveml	sp@+,d3-d7	| restore data registers
 #else
-1:	moveml	sp@,d2-d7
+1:	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -436,16 +242,21 @@ $_exception_handler:
 
 #ifdef  L_mulsi3
 	.text
+| int __mulsi3(int,int)
 	FUNC(__mulsi3)
 	.globl	SYM (__mulsi3)
 	.globl	SYM (__mulsi3_internal)
 	.hidden	SYM (__mulsi3_internal)
 SYM (__mulsi3):
 SYM (__mulsi3_internal):
-	movew	sp@(4), d0	/* x0 -> d0 */
-	muluw	sp@(10), d0	/* x0*y1 */
-	movew	sp@(6), d1	/* x1 -> d1 */
-	muluw	sp@(8), d1	/* x1*y0 */
+|	DEBUG	2
+	movel   d0, a0          | d0a0 = x0:x1
+	movel   d1, a1		| d1a1 = y0:y1
+	swap	d0              | d0   = x1:x0 
+	muluw   d1, d0          | d0 = y1*x0 
+	swap	d1		| d1 = y1:y0
+	movel   a0, d2		| d2 = x0:x1
+	muluw   d2, d1          | d1 = x1*y0	
 #ifndef __mcoldfire__
 	addw	d1, d0
 #else
@@ -453,8 +264,9 @@ SYM (__mulsi3_internal):
 #endif
 	swap	d0
 	clrw	d0
-	movew	sp@(6), d1	/* x1 -> d1 */
-	muluw	sp@(10), d1	/* x1*y1 */
+	movel	a1,d1		| d1 = y0:y1
+	muluw	d2, d1		| d1 = x1*y1
+
 	addl	d1, d0
 
 	rts
@@ -462,6 +274,7 @@ SYM (__mulsi3_internal):
 
 #ifdef  L_udivsi3
 	.text
+| uint __udivsi3(uint, unit)
 	FUNC(__udivsi3)
 	.globl	SYM (__udivsi3)
 	.globl	SYM (__udivsi3_internal)
@@ -469,9 +282,7 @@ SYM (__mulsi3_internal):
 SYM (__udivsi3):
 SYM (__udivsi3_internal):
 #ifndef __mcoldfire__
-	movel	d2, sp@-
-	movel	sp@(12), d1	/* d1 = divisor */
-	movel	sp@(8), d0	/* d0 = dividend */
+	movel	d0, a0
 
 	cmpl	IMM (0x10000), d1 /* divisor >= 2 ^ 16 ?   */
 	jcc	L3		/* then try next algorithm */
@@ -481,7 +292,7 @@ SYM (__udivsi3_internal):
 	divu	d1, d2          /* high quotient in lower word */
 	movew	d2, d0		/* save high quotient */
 	swap	d0
-	movew	sp@(10), d2	/* get low dividend + high rest */
+	movew	a0, d2		/* get low dividend + high rest */
 	divu	d1, d2		/* low quotient */
 	movew	d2, d0
 	jra	L6
@@ -506,21 +317,17 @@ L4:	lsrl	IMM (1), d1	/* shift divisor */
 	jne	L5		/* if 17 bits, quotient was too large */
 	addl	d2, d1		/* add parts */
 	jcs	L5		/* if sum is 33 bits, quotient was too large */
-	cmpl	sp@(8), d1	/* compare the sum with the dividend */
+	cmpl	a0, d1		/* compare the sum with the dividend */
 	jls	L6		/* if sum > dividend, quotient was too large */
 L5:	subql	IMM (1), d0	/* adjust quotient */
 
-L6:	movel	sp@+, d2
-	rts
+L6:	rts
 
 #else /* __mcoldfire__ */
 
 /* ColdFire implementation of non-restoring division algorithm from
    Hennessy & Patterson, Appendix A. */
-	link	a6,IMM (-12)
-	moveml	d2-d4,sp@
-	movel	a6@(8),d0
-	movel	a6@(12),d1
+	moveml	d3-d4,sp@
 	clrl	d2		| clear p
 	moveq	IMM (31),d4
 L1:	addl	d0,d0		| shift reg pair (p,a) one bit left
@@ -532,8 +339,7 @@ L1:	addl	d0,d0		| shift reg pair (p,a) one bit left
 	movl	d3,d2		| and store tmp in p.
 L2:	subql	IMM (1),d4
 	jcc	L1
-	moveml	sp@,d2-d4	| restore data registers
-	unlk	a6		| and return
+	moveml	sp@,d3-d4	| restore data registers
 	rts
 #endif /* __mcoldfire__ */
 
@@ -541,66 +347,58 @@ L2:	subql	IMM (1),d4
 
 #ifdef  L_divsi3
 	.text
+| int __divsi3 (int, int)
 	FUNC(__divsi3)
 	.globl	SYM (__divsi3)
 	.globl	SYM (__divsi3_internal)
 	.hidden	SYM (__divsi3_internal)
 SYM (__divsi3):
 SYM (__divsi3_internal):
-	movel	d2, sp@-
-
 	moveq	IMM (1), d2	/* sign of result stored in d2 (=1 or =-1) */
-	movel	sp@(12), d1	/* d1 = divisor */
+	tstl	d1
 	jpl	L1
 	negl	d1
 #ifndef __mcoldfire__
-	negb	d2		/* change sign because divisor <0  */
+	negw	d2		/* change sign because divisor <0  */
 #else
 	negl	d2		/* change sign because divisor <0  */
 #endif
-L1:	movel	sp@(8), d0	/* d0 = dividend */
+L1:	tstl	d0		/* d0 = dividend */
 	jpl	L2
 	negl	d0
 #ifndef __mcoldfire__
-	negb	d2
+	negw	d2
 #else
 	negl	d2
 #endif
 
-L2:	movel	d1, sp@-
-	movel	d0, sp@-
+L2:	movew	d2,a1		/* Called function MUST NOT clobber a1 */
 	PICCALL	SYM (__udivsi3_internal)	/* divide abs(dividend) by abs(divisor) */
-	addql	IMM (8), sp
 
-	tstb	d2
+	movew	a1,d2
 	jpl	L3
 	negl	d0
 
-L3:	movel	sp@+, d2
-	rts
+L3:	rts
 #endif /* L_divsi3 */
 
 #ifdef  L_umodsi3
 	.text
+| uint __umodsi3(uint, uint)
 	FUNC(__umodsi3)
 	.globl	SYM (__umodsi3)
 SYM (__umodsi3):
-	movel	sp@(8), d1	/* d1 = divisor */
-	movel	sp@(4), d0	/* d0 = dividend */
-	movel	d1, sp@-
-	movel	d0, sp@-
+|	DEBUG	5
+	movel	d0, d2
+	movel	d1, a1		/* a1 MUST NOT be clobbered by calls*/
 	PICCALL	SYM (__udivsi3_internal)
-	addql	IMM (8), sp
-	movel	sp@(8), d1	/* d1 = divisor */
+	movel	a1, d1		/* d1 = divisor */
 #ifndef __mcoldfire__
-	movel	d1, sp@-
-	movel	d0, sp@-
 	PICCALL	SYM (__mulsi3_internal)	/* d0 = (a/b)*b */
-	addql	IMM (8), sp
 #else
 	mulsl	d1,d0
 #endif
-	movel	sp@(4), d1	/* d1 = dividend */
+	movel	d2, d1		/* d1 = dividend */
 	subl	d0, d1		/* d1 = a - (a/b)*b */
 	movel	d1, d0
 	rts
@@ -608,25 +406,20 @@ SYM (__umodsi3):
 
 #ifdef  L_modsi3
 	.text
+| int __modsi3(int, int)
 	FUNC(__modsi3)
 	.globl	SYM (__modsi3)
 SYM (__modsi3):
-	movel	sp@(8), d1	/* d1 = divisor */
-	movel	sp@(4), d0	/* d0 = dividend */
-	movel	d1, sp@-
 	movel	d0, sp@-
+	movel	d1, sp@-
 	PICCALL	SYM (__divsi3_internal)
-	addql	IMM (8), sp
-	movel	sp@(8), d1	/* d1 = divisor */
+	movel	sp@+, d1	/* d1 = divisor */
 #ifndef __mcoldfire__
-	movel	d1, sp@-
-	movel	d0, sp@-
 	PICCALL	SYM (__mulsi3_internal)	/* d0 = (a/b)*b */
-	addql	IMM (8), sp
 #else
 	mulsl	d1,d0
 #endif
-	movel	sp@(4), d1	/* d1 = dividend */
+	movel	sp@+, d1	/* d1 = dividend */
 	subl	d0, d1		/* d1 = a - (a/b)*b */
 	movel	d1, d0
 	rts
@@ -745,7 +538,7 @@ Ld$div$0:
 |
 | All the routines are callable from C programs, and return the result 
 | in the register pair d0-d1. They also preserve all registers except 
-| d0-d1 and a0-a1.
+| d0-d2 and a0-a1.
 
 |=============================================================================
 |                              __subdf3
@@ -754,7 +547,7 @@ Ld$div$0:
 | double __subdf3(double, double);
 	FUNC(__subdf3)
 SYM (__subdf3):
-	bchg	IMM (31),sp@(12) | change sign of second operand
+	bchg	IMM (31),sp@(4) | change sign of second operand
 				| and fall through, so we always add
 |=============================================================================
 |                              __adddf3
@@ -765,15 +558,17 @@ SYM (__subdf3):
 SYM (__adddf3):
 #ifndef __mcoldfire__
 	link	a6,IMM (0)	| everything will be done in registers
-	moveml	d2-d7,sp@-	| save all data registers and a2 (but d0-d1)
+	moveml	d3-d7/a2-a5,sp@-	| save all data registers and a3-a5 (but d0-d2)
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	link	a6,IMM (-36)
+	moveml	d3-d7/a2-a5,sp@
 #endif
-	movel	a6@(8),d0	| get first operand
-	movel	a6@(12),d1	| 
-	movel	a6@(16),d2	| get second operand
-	movel	a6@(20),d3	| 
+	movel	d0,a2
+	movel	d1,a3
+	movel	a6@(8),d2
+	movel	d2,a4
+	movel	a6@(12),d3
+	movel	d3,a5
 
 	movel	d0,d7		| get d0's sign bit in d7 '
 	addl	d1,d1		| check and clear sign bit of a, and gain one
@@ -846,9 +641,8 @@ Ladddf$2:
 | exponents in a2-a3.
 
 #ifndef __mcoldfire__
-	moveml	a2-a3,sp@-	| save the address registers
+	movel	a3,sp@-		| save the address register
 #else
-	movel	a2,sp@-	
 	movel	a3,sp@-	
 	movel	a4,sp@-	
 #endif
@@ -1131,11 +925,10 @@ Ladddf$4:
 	andl	IMM (0x80000000),d7 | d7 now has the sign
 
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3	
+	movel	sp@+,a3	
 #else
 	movel	sp@+,a4	
 	movel	sp@+,a3	
-	movel	sp@+,a2	
 #endif
 
 | Before rounding normalize so bit #DBL_MANT_DIG is set (we will consider
@@ -1239,11 +1032,10 @@ Lsubdf$0:
 	movel	a0,d7
 	andl	IMM (0x80000000),d7 | isolate sign bit
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3	|
+	movel	sp@+,a3  	|
 #else
 	movel	sp@+,a4
 	movel	sp@+,a3
-	movel	sp@+,a2
 #endif
 
 | Before rounding normalize so bit #DBL_MANT_DIG is set (we will consider
@@ -1312,20 +1104,19 @@ Lsubdf$1:
 | check for finiteness or zero).
 Ladddf$a$small:
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3	
+	movel	sp@+,a3	
 #else
 	movel	sp@+,a4
 	movel	sp@+,a3
-	movel	sp@+,a2
 #endif
-	movel	a6@(16),d0
-	movel	a6@(20),d1
+	movel	a4,d0
+	movel	a5,d1
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| restore data registers
+	moveml	sp@+,d3-d7/a2-a5	| restore data registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a5
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -1334,20 +1125,19 @@ Ladddf$a$small:
 
 Ladddf$b$small:
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3	
+	movel	sp@+,a3	
 #else
 	movel	sp@+,a4	
 	movel	sp@+,a3	
-	movel	sp@+,a2	
 #endif
-	movel	a6@(8),d0
-	movel	a6@(12),d1
+	movel	a2,d0
+	movel	a3,d1
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| restore data registers
+	moveml	sp@+,d3-d7/a2-a5	| restore data registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a5
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -1374,8 +1164,8 @@ Ladddf$b:
 	clrl	d0
 	bra	Ladddf$ret
 Ladddf$a:
-	movel	a6@(8),d0
-	movel	a6@(12),d1
+	movel	a2,d0
+	movel	a3,d1
 1:
 	moveq	IMM (ADD),d5
 | Check for NaN and +/-INFINITY.
@@ -1386,8 +1176,6 @@ Ladddf$a:
 	bge	2f			|
 	movel	d0,d0           	| check for zero, since we don't  '
 	bne	Ladddf$ret		| want to return -0 by mistake
-	movel	d1,d1			|
-	bne	Ladddf$ret		|
 	bclr	IMM (31),d7		|
 	bra	Ladddf$ret		|
 2:
@@ -1398,11 +1186,10 @@ Ladddf$a:
 	
 Ladddf$ret$1:
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3	| restore regs and exit
+	movel	sp@+,a3	| restore regs and exit
 #else
 	movel	sp@+,a4
 	movel	sp@+,a3
-	movel	sp@+,a2
 #endif
 
 Ladddf$ret:
@@ -1411,9 +1198,9 @@ Ladddf$ret:
 	movew	IMM (0),a0@
 	orl	d7,d0		| put sign bit back
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7/a2-a5
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a5
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -1438,10 +1225,10 @@ Ladddf$nf:
 	moveq	IMM (ADD),d5
 | This could be faster but it is not worth the effort, since it is not
 | executed very often. We sacrifice speed for clarity here.
-	movel	a6@(8),d0	| get the numbers back (remember that we
-	movel	a6@(12),d1	| did some processing already)
-	movel	a6@(16),d2	| 
-	movel	a6@(20),d3	| 
+	movel	a2,d0	| get the numbers back (remember that we
+	movel	a3,d1	| did some processing already)
+	movel	a4,d2	| 
+	movel	a5,d3	| 
 	movel	IMM (0x7ff00000),d4 | useful constant (INFINITY)
 	movel	d0,d7		| save sign bits
 	movel	d2,d6		| 
@@ -1489,12 +1276,13 @@ Ladddf$nf:
 | double __muldf3(double, double);
 	FUNC(__muldf3)
 SYM (__muldf3):
+|	DEBUG	8
 #ifndef __mcoldfire__
 	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	link	a6,IMM (-20)
+	moveml	d3-d7,sp@
 #endif
 	movel	a6@(8),d0		| get a into d0-d1
 	movel	a6@(12),d1		| 
@@ -1565,13 +1353,7 @@ Lmuldf$2:				|
 | enough to keep everything in them. So we use the address registers to keep
 | some intermediate data.
 
-#ifndef __mcoldfire__
-	moveml	a2-a3,sp@-	| save a2 and a3 for temporary use
-#else
-	movel	a2,sp@-
-	movel	a3,sp@-
-	movel	a4,sp@-
-#endif
+	movel	a3,sp@-		| save a3 for temporary use
 	movel	IMM (0),a2	| a2 is a null register
 	movel	d4,a3		| and a3 will preserve the exponent
 
@@ -1662,11 +1444,10 @@ Lmuldf$2:				|
 
 	movel	a3,d4		| restore exponent
 #ifndef __mcoldfire__
-	moveml	sp@+,a2-a3
+	movel	sp@+,a3
 #else
 	movel	sp@+,a4
 	movel	sp@+,a3
-	movel	sp@+,a2
 #endif
 
 | Now we have the product in d0-d1-d2-d3, with bit 8 of d0 set. The 
@@ -1773,9 +1554,9 @@ Lmuldf$a$0:
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -1822,12 +1603,13 @@ Lmuldf$b$den:
 | double __divdf3(double, double);
 	FUNC(__divdf3)
 SYM (__divdf3):
+|	DEBUG	9
 #ifndef __mcoldfire__
 	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	link	a6,IMM (-20)
+	moveml	d3-d7,sp@
 #endif
 	movel	a6@(8),d0	| get a into d0-d1
 	movel	a6@(12),d1	| 
@@ -2059,9 +1841,9 @@ Ldivdf$a$0:
 	PICLEA	SYM (_fpCCR),a0	| clear exception flags
 	movew	IMM (0),a0@	|
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| 
+	moveml	sp@+,d3-d7	| 
 #else
-	moveml	sp@,d2-d7	| 
+	moveml	sp@,d3-d7	| 
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2095,7 +1877,8 @@ Ldivdf$a$nf:
 | If a is INFINITY we have to check b
 	cmpl	d7,d2		| compare b with INFINITY 
 	bge	Ld$inop		| if b is NaN or INFINITY return NaN
-	movl	a0,d7		| restore sign bit to d7
+	tstl	d3		|
+	bne	Ld$inop		| 
 	bra	Ld$overflow	| else return overflow
 
 | If a number is denormalized we put an exponent of 1 but do not put the 
@@ -2247,9 +2030,9 @@ Lround$0:
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2263,12 +2046,13 @@ Lround$0:
 | double __negdf2(double, double);
 	FUNC(__negdf2)
 SYM (__negdf2):
+|	DEBUG	10
 #ifndef __mcoldfire__
 	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	link	a6,IMM (-20)
+	moveml	d3-d7,sp@
 #endif
 	moveq	IMM (NEGATE),d5
 	movel	a6@(8),d0	| get number to negate in d0-d1
@@ -2290,9 +2074,9 @@ SYM (__negdf2):
 1:	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2309,14 +2093,16 @@ GREATER =  1
 LESS    = -1
 EQUAL   =  0
 
+| Last int arg is actually sent in a0!
 | int __cmpdf2_internal(double, double, int);
 SYM (__cmpdf2_internal):
+|	DEBUG	11
 #ifndef __mcoldfire__
 	link	a6,IMM (0)
-	moveml	d2-d7,sp@- 	| save registers
+	moveml	d3-d7,sp@- 	| save registers
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	link	a6,IMM (-20)
+	moveml	d3-d7,sp@
 #endif
 	moveq	IMM (COMPARE),d5
 	movel	a6@(8),d0	| get first operand
@@ -2379,9 +2165,9 @@ Lcmpdf$1:
 | If we got here a == b.
 	movel	IMM (EQUAL),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2390,9 +2176,9 @@ Lcmpdf$1:
 Lcmpdf$a$gt$b:
 	movel	IMM (GREATER),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2401,9 +2187,9 @@ Lcmpdf$a$gt$b:
 Lcmpdf$b$gt$a:
 	movel	IMM (LESS),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
@@ -2428,7 +2214,7 @@ Lcmpdf$b$nf:
 	bra	Lcmpdf$1
 
 Lcmpd$inop:
-	movl	a6@(24),d0
+| a0 MUST be untouches until now.
 	moveq	IMM (INEXACT_RESULT+INVALID_OPERATION),d7
 	moveq	IMM (DOUBLE_FLOAT),d6
 	PICJUMP	$_exception_handler
@@ -2436,15 +2222,9 @@ Lcmpd$inop:
 | int __cmpdf2(double, double);
 	FUNC(__cmpdf2)
 SYM (__cmpdf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+| 	DEBUG	12 
+	lea	1.w,a0
+	bra	SYM (__cmpdf2_internal)
 
 |=============================================================================
 |                           rounding routines
@@ -2594,7 +2374,9 @@ ROUND_TO_MINUS    = 3 | round result towards minus infinity
 	.globl SYM (__negsf2)
 	.globl SYM (__cmpsf2)
 	.globl SYM (__cmpsf2_internal)
+#ifdef __ELF__
 	.hidden SYM (__cmpsf2_internal)
+#endif
 
 | These are common routines to return and signal exceptions.	
 
@@ -2666,7 +2448,8 @@ Lf$div$0:
 | float __subsf3(float, float);
 	FUNC(__subsf3)
 SYM (__subsf3):
-	bchg	IMM (31),sp@(8)	| change sign of second operand
+| 	DEBUG	13
+	negl	d1       	| change sign of second operand
 				| and fall through
 |=============================================================================
 |                              __addsf3
@@ -2675,15 +2458,15 @@ SYM (__subsf3):
 | float __addsf3(float, float);
 	FUNC(__addsf3)
 SYM (__addsf3):
+|	DEBUG	14
 #ifndef __mcoldfire__
-	link	a6,IMM (0)	| everything will be done in registers
-	moveml	d2-d7,sp@-	| save all data registers but d0-d1
+	moveml	d3-d7/a2-a3,sp@-	| save all data registers but d0-d1
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	lea	a6@(-28),a6	
+	moveml	d3-d7/a2-a3,sp@
 #endif
-	movel	a6@(8),d0	| get first operand
-	movel	a6@(12),d1	| get second operand
+	movel	d0,a2		| store first operand
+	movel	d1,a3		| store second operand
 	movel	d0,a0		| get d0's sign bit '
 	addl	d0,d0		| check and clear sign bit of a
 	beq	Laddsf$b	| if zero return second operand
@@ -2940,7 +2723,7 @@ Laddsf$4:
 #else
 	cmpl	IMM (0xff),d2
 #endif
-	bge	1f
+	bhi	1f
 	bclr	IMM (FLT_MANT_DIG-1),d0
 #ifndef __mcoldfire__
 	lslw	IMM (7),d2
@@ -3014,32 +2797,32 @@ Lsubsf$1:
 | FLT_MANT_DIG+2) we return the other (and now we don't have to '
 | check for finiteness or zero).
 Laddsf$a$small:
-	movel	a6@(12),d0
+	movel	a3,d0
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| restore data registers
+	moveml	sp@+,d3-d7/a2-a3	| restore data registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a3
+	lea	a6@(28),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6		| and return
-	rts
+	rts		| and return
 
 Laddsf$b$small:
-	movel	a6@(8),d0
+	movel	a2,d0
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| restore data registers
+	moveml	sp@+,d3-d7/a2-a3	| restore data registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a3
+	lea	a6@(28),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6		| and return
-	rts
+	rts		| and return
 
 | If the numbers are denormalized remember to put exponent equal to 1.
 
@@ -3060,7 +2843,7 @@ Laddsf$b$den:
 
 Laddsf$b:
 | Return b (if a is zero).
-	movel	a6@(12),d0
+	movel	a3,d0
 	cmpl	IMM (0x80000000),d0	| Check if b is -0
 	bne	1f
 	movel	a0,d7
@@ -3069,7 +2852,7 @@ Laddsf$b:
 	bra	Laddsf$ret
 Laddsf$a:
 | Return a (if b is zero).
-	movel	a6@(8),d0
+	movel	a2,d0
 1:
 	moveq	IMM (ADD),d5
 | We have to check for NaN and +/-infty.
@@ -3095,14 +2878,14 @@ Laddsf$ret:
 	movew	IMM (0),a0@
 	orl	d7,d0		| put sign bit
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| restore data registers
+	moveml	sp@+,d3-d7/a2-a3	| restore data registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a3
+	lea	a6@(28),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6		| and return
-	rts
+	rts		| and return
 
 Laddsf$ret$den:
 | Return a denormalized number (for addition we don't signal underflow) '
@@ -3120,12 +2903,12 @@ Laddsf$nf:
 	moveq	IMM (ADD),d5
 | This could be faster but it is not worth the effort, since it is not
 | executed very often. We sacrifice speed for clarity here.
-	movel	a6@(8),d0	| get the numbers back (remember that we
-	movel	a6@(12),d1	| did some processing already)
+	movel	a2,d0	| get the numbers back (remember that we
+	movel	a3,d1	| did some processing already)
 	movel	IMM (INFINITY),d4 | useful constant (INFINITY)
 	movel	d0,d2		| save sign bits
 	movel	d0,d7		| into d7 as well as we may need the sign
-				| bit before jumping to LfSinfty
+						| bit before jumping to LfSinfty
 	movel	d1,d3
 	bclr	IMM (31),d0	| clear sign bits
 	bclr	IMM (31),d1
@@ -3162,15 +2945,15 @@ Laddsf$nf:
 | float __mulsf3(float, float);
 	FUNC(__mulsf3)
 SYM (__mulsf3):
+|	DEBUG	15
 #ifndef __mcoldfire__
-	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7/a2-a3,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	lea	a6@(-28),a6	
+	moveml	d3-d7/a2-a3,sp@
 #endif
-	movel	a6@(8),d0	| get a into d0
-	movel	a6@(12),d1	| and b into d1
+	movel	d0,a2		| store a into a0
+	movel	d1,a3		| store b into a1
 	movel	d0,d7		| d7 will hold the sign of the product
 	eorl	d1,d7		|
 	andl	IMM (0x80000000),d7
@@ -3320,10 +3103,10 @@ Lmulsf$inf:
 | or NaN, in which case we return NaN.
 Lmulsf$b$0:
 | Here d1 (==b) is zero.
-	movel	a6@(8),d1	| get a again to check for non-finiteness
+	movel	a2,d1		| get a again to check for non-finiteness
 	bra	1f
 Lmulsf$a$0:
-	movel	a6@(12),d1	| get b again to check for non-finiteness
+	movel	a3,d1	| get b again to check for non-finiteness
 1:	bclr	IMM (31),d1	| clear sign bit 
 	cmpl	IMM (INFINITY),d1 | and check for a large exponent
 	bge	Lf$inop		| if b is +/-INFINITY or NaN return NaN
@@ -3331,13 +3114,13 @@ Lmulsf$a$0:
 	PICLEA	SYM (_fpCCR),a0	|
 	movew	IMM (0),a0@	| 
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7	| 
+	moveml	sp@+,d3-d7/a2-a3	| 
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7/a2-a3
+	lea	a6@(28),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6		| 
 	rts			| 
 
 | If a number is denormalized we put an exponent of 1 but do not put the 
@@ -3377,15 +3160,13 @@ Lmulsf$b$den:
 | float __divsf3(float, float);
 	FUNC(__divsf3)
 SYM (__divsf3):
+|	DEBUG	16
 #ifndef __mcoldfire__
-	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	lea	a6@(-20),a6	
+	moveml	d3-d7,sp@
 #endif
-	movel	a6@(8),d0		| get a into d0
-	movel	a6@(12),d1		| and b into d1
 	movel	d0,d7			| d7 will hold the sign of the result
 	eorl	d1,d7			|
 	andl	IMM (0x80000000),d7	| 
@@ -3532,13 +3313,13 @@ Ldivsf$a$0:
 	PICLEA	SYM (_fpCCR),a0		|
 	movew	IMM (0),a0@		|
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7		| 
+	moveml	sp@+,d3-d7		| 
 #else
-	moveml	sp@,d2-d7		| 
+	moveml	sp@,d3-d7		| 
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6			| 
 	rts				| 
 	
 Ldivsf$b$0:
@@ -3684,13 +3465,13 @@ Lround$0:
 	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6
 	rts
 
 |=============================================================================
@@ -3703,15 +3484,14 @@ Lround$0:
 | float __negsf2(float);
 	FUNC(__negsf2)
 SYM (__negsf2):
+|	DEBUG	17
 #ifndef __mcoldfire__
-	link	a6,IMM (0)
-	moveml	d2-d7,sp@-
+	moveml	d3-d7,sp@-
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	lea	a6@(-20),a6	
+	moveml	d3-d7,sp@
 #endif
 	moveq	IMM (NEGATE),d5
-	movel	a6@(8),d0	| get number to negate in d0
 	bchg	IMM (31),d0	| negate
 	movel	d0,d1		| make a positive copy
 	bclr	IMM (31),d1	|
@@ -3726,13 +3506,13 @@ SYM (__negsf2):
 1:	PICLEA	SYM (_fpCCR),a0
 	movew	IMM (0),a0@
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7
+	moveml	sp@+,d3-d7
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6
 	rts
 2:	bclr	IMM (31),d0
 	bra	1b
@@ -3745,18 +3525,17 @@ GREATER =  1
 LESS    = -1
 EQUAL   =  0
 
+| Last int arg is actually sent in a0!
 | int __cmpsf2_internal(float, float, int);
 SYM (__cmpsf2_internal):
+|	DEBUG	18
 #ifndef __mcoldfire__
-	link	a6,IMM (0)
-	moveml	d2-d7,sp@- 	| save registers
+	moveml	d3-d7,sp@- 	| save registers
 #else
-	link	a6,IMM (-24)
-	moveml	d2-d7,sp@
+	lea	a6@(-20),a6	
+	moveml	d3-d7,sp@
 #endif
 	moveq	IMM (COMPARE),d5
-	movel	a6@(8),d0	| get first operand
-	movel	a6@(12),d1	| get second operand
 | Check if either is NaN, and in that case return garbage and signal
 | INVALID_OPERATION. Check also if either is zero, and clear the signs
 | if necessary.
@@ -3800,33 +3579,33 @@ Lcmpsf$2:
 | If we got here a == b.
 	movel	IMM (EQUAL),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 #endif
-	unlk	a6
 	rts
 Lcmpsf$a$gt$b:
 	movel	IMM (GREATER),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6
 	rts
 Lcmpsf$b$gt$a:
 	movel	IMM (LESS),d0
 #ifndef __mcoldfire__
-	moveml	sp@+,d2-d7 	| put back the registers
+	moveml	sp@+,d3-d7 	| put back the registers
 #else
-	moveml	sp@,d2-d7
+	moveml	sp@,d3-d7
+	lea	a6@(20),a6	
 	| XXX if frame pointer is ever removed, stack pointer must
 	| be adjusted here.
 #endif
-	unlk	a6
 	rts
 
 Lcmpsf$a$0:	
@@ -3837,7 +3616,7 @@ Lcmpsf$b$0:
 	bra	Lcmpsf$2
 
 Lcmpf$inop:
-	movl	a6@(16),d0
+	movel	a0,d0
 	moveq	IMM (INEXACT_RESULT+INVALID_OPERATION),d7
 	moveq	IMM (SINGLE_FLOAT),d6
 	PICJUMP	$_exception_handler
@@ -3845,13 +3624,9 @@ Lcmpf$inop:
 | int __cmpsf2(float, float);
 	FUNC(__cmpsf2)
 SYM (__cmpsf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	19
+	lea	1.w,a0
+	bra	SYM (__cmpsf2_internal)
 
 |=============================================================================
 |                           rounding routines
@@ -3945,15 +3720,9 @@ Lround$to$minus:
 	FUNC(__eqdf2)
 	.globl	SYM (__eqdf2)
 SYM (__eqdf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	20
+	lea	1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_eqdf2 */
 
 #ifdef  L_nedf2
@@ -3961,15 +3730,9 @@ SYM (__eqdf2):
 	FUNC(__nedf2)
 	.globl	SYM (__nedf2)
 SYM (__nedf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	21
+	lea	1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_nedf2 */
 
 #ifdef  L_gtdf2
@@ -3977,15 +3740,9 @@ SYM (__nedf2):
 	FUNC(__gtdf2)
 	.globl	SYM (__gtdf2)
 SYM (__gtdf2):
-	link	a6,IMM (0)
-	pea	-1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	22
+	lea	-1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_gtdf2 */
 
 #ifdef  L_gedf2
@@ -3993,15 +3750,9 @@ SYM (__gtdf2):
 	FUNC(__gedf2)
 	.globl	SYM (__gedf2)
 SYM (__gedf2):
-	link	a6,IMM (0)
-	pea	-1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	23
+	lea	-1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_gedf2 */
 
 #ifdef  L_ltdf2
@@ -4009,15 +3760,9 @@ SYM (__gedf2):
 	FUNC(__ltdf2)
 	.globl	SYM (__ltdf2)
 SYM (__ltdf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	24
+	lea	1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_ltdf2 */
 
 #ifdef  L_ledf2
@@ -4025,15 +3770,9 @@ SYM (__ltdf2):
 	FUNC(__ledf2)
 	.globl	SYM (__ledf2)
 SYM (__ledf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(20),sp@-
-	movl	a6@(16),sp@-
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpdf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	25
+	lea	1.w,a0
+	bra	SYM (__cmpdf2_internal)
 #endif /* L_ledf2 */
 
 | The comments above about __eqdf2, et. al., also apply to __eqsf2,
@@ -4044,13 +3783,10 @@ SYM (__ledf2):
 	FUNC(__eqsf2)
 	.globl	SYM (__eqsf2)
 SYM (__eqsf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	26
+	lea	1.w,a0
+	bra	SYM (__cmpsf2_internal)
+
 #endif /* L_eqsf2 */
 
 #ifdef  L_nesf2
@@ -4058,13 +3794,9 @@ SYM (__eqsf2):
 	FUNC(__nesf2)
 	.globl	SYM (__nesf2)
 SYM (__nesf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	27
+	lea	1.w,a0
+	bra	SYM (__cmpsf2_internal)
 #endif /* L_nesf2 */
 
 #ifdef  L_gtsf2
@@ -4072,13 +3804,9 @@ SYM (__nesf2):
 	FUNC(__gtsf2)
 	.globl	SYM (__gtsf2)
 SYM (__gtsf2):
-	link	a6,IMM (0)
-	pea	-1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	28
+	lea	-1.w,a0
+	bra	SYM (__cmpsf2_internal)
 #endif /* L_gtsf2 */
 
 #ifdef  L_gesf2
@@ -4086,13 +3814,9 @@ SYM (__gtsf2):
 	FUNC(__gesf2)
 	.globl	SYM (__gesf2)
 SYM (__gesf2):
-	link	a6,IMM (0)
-	pea	-1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	29
+	lea	-1.w,a0
+	bra	SYM (__cmpsf2_internal)
 #endif /* L_gesf2 */
 
 #ifdef  L_ltsf2
@@ -4100,13 +3824,9 @@ SYM (__gesf2):
 	FUNC(__ltsf2)
 	.globl	SYM (__ltsf2)
 SYM (__ltsf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	30
+	lea	1.w,a0
+	bra	SYM (__cmpsf2_internal)
 #endif /* L_ltsf2 */
 
 #ifdef  L_lesf2
@@ -4114,18 +3834,8 @@ SYM (__ltsf2):
 	FUNC(__lesf2)
 	.globl	SYM (__lesf2)
 SYM (__lesf2):
-	link	a6,IMM (0)
-	pea	1
-	movl	a6@(12),sp@-
-	movl	a6@(8),sp@-
-	PICCALL	SYM (__cmpsf2_internal)
-	unlk	a6
-	rts
+|	DEBUG	31
+	lea	1.w,a0
+	bra	SYM (__cmpsf2_internal)
 #endif /* L_lesf2 */
 
-#if defined (__ELF__) && defined (__linux__)
-	/* Make stack non-executable for ELF linux targets.  */
-	.section	.note.GNU-stack,"",@progbits
-#endif
-
-#endif /* !__FASTCALL__ */

@@ -23,6 +23,11 @@ a copy of the GCC Runtime Library Exception along with this program;
 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
+#if defined(__mcoldfire__) && defined(__MSHORT__)
+// this is only a bad hack
+#pragma GCC optimize "O0"
+#endif
+
 #ifndef _Unwind_Find_FDE
 #include "tconfig.h"
 #include "tsystem.h"

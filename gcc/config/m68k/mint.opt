@@ -1,0 +1,69 @@
+
+mshared
+Target Report Mask(SHARED)
+creates a shared library
+
+fuse-libcmini
+Common Var(fuse_libcmini)
+link with libcmini instead with libc and include <...> from m68k_atari_mint/include/libcmini before from m68k_atari_mint/include
+
+mthreads
+Target RejectNegative
+defines _REENTRANT and link with libpthread
+
+mfastload
+Target
+same as -Wl,--fastload (default)                 Enable/Disable not cleaning the heap on startup
+
+maltram
+Target
+same as -Wl,--altram (default)                   Enable/Disable loading into alternate RAM
+
+mfastram
+Target
+same as -Wl,--fastram (same as -maltram)         Enable/Disable loading into alternate RAM
+
+maltalloc
+Target
+same as -Wl,--altalloc (default)                 Enable/Disable malloc from alternate RAM
+
+mfastalloc
+Target
+same as -Wl,--fastalloc (same as -maltalloc)     Enable/Disable malloc from alternate RAM
+
+mbest-fit
+Target
+same as -Wl,--best-fit                           Enable/Disable loading with optimal heap size
+
+msharable-text
+Target
+same as -Wl,--sharable-text                      Enable/Disable sharing the text segment
+
+mshared-text
+Target
+same as -Wl,--shared-text (like -msharable-text) Enable/Disable sharing the text segment
+
+mbasrel
+Target
+same as -Wl,--basrel (same as -msharable-text)   Enable/Disable sharing the text segment
+
+mprivate-memory
+Target RejectNegative
+same as -Wl,--private-memory (default)           Process memory is not accessible
+
+mglobal-memory
+Target RejectNegative
+same as -Wl,--global-memory                      Process memory is readable and writable
+
+msuper-memory
+Target RejectNegative
+same as -Wl,--super-memory                       Process memory is accessible in supervisor mode
+
+mreadonly-memory
+Target RejectNegative
+same as -Wl,--readonly-memory                    Process memory is readable but not writable
+
+mreadable-memory
+Target RejectNegative
+same as -Wl,--readable-memory                    Process memory is readable but not writable
+

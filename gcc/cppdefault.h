@@ -73,4 +73,7 @@ extern const char *gcc_exec_prefix;
 /* Return true if the toolchain is relocated.  */
 bool cpp_relocated (void);
 
+/* Return true if the include enabled.  */
+bool cpp_default_include_enabled (const default_include *include);
+
 #endif /* ! GCC_CPPDEFAULT_H */
